@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.Newrfid" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <!-- Primary = biru -->
+        <item name="colorPrimary">@color/blue_500</item>
+        <item name="colorPrimaryVariant">@color/blue_700</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+
+        <!-- Background putih -->
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="colorSurface">@android:color/white</item>
+        <item name="colorOnSurface">@android:color/black</item>
+
+        <!-- Secondary (opsional) -->
+        <item name="colorSecondary">@color/blue_500</item>
+        <item name="colorOnSecondary">@android:color/white</item>
+
+        <!-- Status bar putih + icon gelap -->
+        <item name="android:statusBarColor">@android:color/white</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

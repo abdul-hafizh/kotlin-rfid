@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">RFID App</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="login">LOGIN</string>
+    <string name="get_me_protected">GET /ME (Protected)</string>
+    <string name="logout">Logout</string>
+    <string name="password2">Password</string>
+    <string name="rfid_scanner">RFID Scanner</string>
+    <string name="status">Status...</string>
+    <string name="clear">Clear</string>
+    <string name="loop">Loop</string>
+    <string name="single">Single</string>
+    <string name="init">Init</string>
+    <string name="start_loop">Start Loop</string>
+    <string name="push_server">Push Server</string>
+</resources>
