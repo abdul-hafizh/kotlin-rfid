@@ -17,6 +17,8 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.rscja.deviceapi.RFIDWithUHFUART
 import com.rscja.deviceapi.entity.UHFTAGInfo
 import com.rscja.deviceapi.interfaces.IUHFInventoryCallback
@@ -25,8 +27,6 @@ import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.LinkedHashMap
 import kotlin.concurrent.thread
-import androidx.recyclerview.widget.RecyclerView
-import androidx.recyclerview.widget.LinearLayoutManager
 
 class MainActivity : AppCompatActivity() {
 
@@ -35,6 +35,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvInfo: TextView
     private lateinit var tvLog: TextView
     private lateinit var btnLoop: Button
+    private lateinit var btnSaveScan: Button
 
     private var reader: RFIDWithUHFUART? = null
     private var loopFlag = false
@@ -46,8 +47,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var productAdapter: ProductAdapter
 
     private val productRows = mutableListOf<ProductRow>()
-    private val itemCodeToIndex = HashMap<String, Int>() // item_code -> index row
-    private val epcToItemCode = HashMap<String, String>() // EPC -> item_code
+    private val itemCodeToIndex = HashMap<String, Int>()
+    private val epcToItemCode = HashMap<String, String>()
     private var unknownRegistered = 0
 
     private val requestPerms = registerForActivityResult(
@@ -56,7 +57,7 @@ class MainActivity : AppCompatActivity() {
         appendLog("Permission result diterima. Tekan INIT lagi.")
     }
 
-    private val seenTagMap = LinkedHashMap<String, TagItem>() // key = epc
+    private val seenTagMap = LinkedHashMap<String, TagItem>()
 
     private val api: ApiService by lazy { ApiClient.create() }
 
@@ -72,6 +73,7 @@ class MainActivity : AppCompatActivity() {
         tvInfo = findViewById(R.id.tvInfo)
         tvLog = findViewById(R.id.tvLog)
         btnLoop = findViewById(R.id.btnLoop)
+        btnSaveScan = findViewById(R.id.btnSaveScan)
 
         findViewById<Button>(R.id.btnSingle).setOnClickListener { scanSingle() }
         btnLoop.setOnClickListener { toggleLoop() }
@@ -79,6 +81,10 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btnPush).setOnClickListener {
             confirmPushToServer()
+        }
+
+        btnSaveScan.setOnClickListener {
+            confirmSaveScanResult()
         }
 
         rvProducts = findViewById(R.id.rvProducts)
@@ -92,11 +98,7 @@ class MainActivity : AppCompatActivity() {
         loadMasterAndMapping()
     }
 
-    // ==========================
-    // PERMISSION + INIT
-    // ==========================
     private fun checkPermissionThenInit() {
-        // Android 11+ (R): minta All files access seperti demo
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
                 Toast.makeText(this, "Aktifkan All files access dulu", Toast.LENGTH_SHORT).show()
@@ -106,7 +108,6 @@ class MainActivity : AppCompatActivity() {
                 return
             }
         } else {
-            // Android 6-10: minta READ/WRITE runtime
             val need = mutableListOf<String>()
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED
@@ -166,9 +167,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ==========================
-    // SCAN SINGLE
-    // ==========================
     private fun scanSingle() {
         if (reader == null) {
             appendLog("Belum init reader.")
@@ -188,9 +186,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ==========================
-    // LOOP INVENTORY
-    // ==========================
     private fun toggleLoop() {
         if (reader == null) {
             appendLog("Belum init reader.")
@@ -205,7 +200,6 @@ class MainActivity : AppCompatActivity() {
         seenEpc.clear()
         seenTagMap.clear()
         totalReads = 0
-
         unknownRegistered = 0
 
         val current = productAdapter.getItems().map { it.copy(scanQty = 0) }
@@ -240,20 +234,15 @@ class MainActivity : AppCompatActivity() {
             val ok = reader?.stopInventory() == true
             loopFlag = false
             appendLog("Loop stop: $ok")
-
             updateInfo("Loop: OFF")
         } catch (t: Throwable) {
             loopFlag = false
             appendLog("StopLoop ERROR: ${t.message}")
             Log.e(tag, "stopLoop error", t)
-
             updateInfo("Loop: OFF")
         }
     }
 
-    // ==========================
-    // TAG HANDLING
-    // ==========================
     private fun onTag(info: UHFTAGInfo) {
         val epc = (info.epc ?: "").trim()
         if (epc.isEmpty()) return
@@ -315,6 +304,11 @@ class MainActivity : AppCompatActivity() {
         seenEpc.clear()
         totalReads = 0
         seenTagMap.clear()
+        unknownRegistered = 0
+
+        val current = productAdapter.getItems().map { it.copy(scanQty = 0) }
+        productAdapter.setData(current)
+
         showInfo("Cleared")
     }
 
@@ -332,9 +326,6 @@ class MainActivity : AppCompatActivity() {
         showInfo("$status | Unique EPC: ${seenEpc.size} | Total reads: $totalReads | Unknown EPC: $unknownRegistered")
     }
 
-    // ==========================
-    // PUSH SERVER
-    // ==========================
     private fun confirmPushToServer() {
         if (seenTagMap.isEmpty()) {
             Toast.makeText(this, "Belum ada tag untuk dikirim.", Toast.LENGTH_SHORT).show()
@@ -349,7 +340,7 @@ class MainActivity : AppCompatActivity() {
         val count = seenTagMap.size
 
         AlertDialog.Builder(this)
-            .setTitle("Push ke Server")
+            .setTitle("Simpan Tag Baru")
             .setMessage("Anda yakin ingin mengirim $count tag ke server?")
             .setPositiveButton("Ya") { _, _ -> pushToServer() }
             .setNegativeButton("Batal", null)
@@ -395,7 +386,7 @@ class MainActivity : AppCompatActivity() {
                         .setPositiveButton("OK", null)
                         .show()
 
-                    appendLog("PUSH OK: ${body?.message ?: "success"} | inserted=${body?.inserted} dup=${body?.duplicate}")
+                    appendLog("PUSH `OK: ${body?.message ?: "success"} | inserted=${body?.inserted} dup=${body?.duplicate}")
                 } else {
                     val err = try { resp.errorBody()?.string() } catch (_: Throwable) { null }
                     Toast.makeText(this@MainActivity, "Gagal push: ${resp.code()}", Toast.LENGTH_LONG).show()
@@ -409,10 +400,106 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // ==========================
+    // SIMPAN HASIL SCAN
+    // ==========================
+    private fun confirmSaveScanResult() {
+        if (seenTagMap.isEmpty()) {
+            Toast.makeText(this, "Belum ada hasil scan untuk disimpan.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (loopFlag) {
+            Toast.makeText(this, "Stop loop dulu sebelum simpan hasil scan.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Simpan Hasil Scan")
+            .setMessage("Simpan hasil scan saat ini ke database?")
+            .setPositiveButton("Ya") { _, _ -> saveScanResult() }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun saveScanResult() {
+        val progress = ProgressDialog(this).apply {
+            setMessage("Menyimpan hasil scan...")
+            setCancelable(false)
+            show()
+        }
+
+        val deviceId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+
+        val itemPayloads = productAdapter.getItems().map { row ->
+            SaveScanSessionItemRequest(
+                itemCode = row.itemCode,
+                itemName = row.itemName,
+                stockSystem = row.endStock,
+                scanQty = row.scanQty
+            )
+        }
+
+        val tagPayloads = seenTagMap.values.map { tagItem ->
+            SaveScanSessionTagRequest(
+                epc = tagItem.epc,
+                tid = tagItem.tid,
+                rssi = tagItem.rssi,
+                itemCode = epcToItemCode[tagItem.epc],
+                isRegistered = epcToItemCode.containsKey(tagItem.epc),
+                readAt = tagItem.readAt
+            )
+        }
+
+        val payload = SaveScanSessionRequest(
+            deviceId = deviceId,
+            scannedAt = if (Build.VERSION.SDK_INT >= 26) OffsetDateTime.now().toString() else null,
+            totalUniqueEpc = seenTagMap.size,
+            totalReads = totalReads,
+            unknownEpc = unknownRegistered,
+            items = itemPayloads,
+            tags = tagPayloads
+        )
+
+        uiScope.launch {
+            try {
+                val resp = withContext(Dispatchers.IO) { api.saveScanSession(payload) }
+                progress.dismiss()
+
+                if (resp.isSuccessful) {
+                    val body = resp.body()
+
+                    val msg = buildString {
+                        append(body?.message ?: "Hasil scan berhasil disimpan")
+                        append("\nSession ID: ").append(body?.data?.sessionId ?: "-")
+                        append("\nSession Code: ").append(body?.data?.sessionCode ?: "-")
+                        append("\nSaved Items: ").append(body?.data?.savedItems ?: 0)
+                        append("\nSaved Tags: ").append(body?.data?.savedTags ?: 0)
+                    }
+
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle("Simpan Berhasil")
+                        .setMessage(msg)
+                        .setPositiveButton("OK", null)
+                        .show()
+
+                    appendLog("SAVE OK: ${body?.message ?: "success"} | session=${body?.data?.sessionCode}")
+                } else {
+                    val err = try { resp.errorBody()?.string() } catch (_: Throwable) { null }
+                    Toast.makeText(this@MainActivity, "Gagal simpan: ${resp.code()}", Toast.LENGTH_LONG).show()
+                    appendLog("SAVE FAIL HTTP ${resp.code()}: $err")
+                }
+            } catch (t: Throwable) {
+                progress.dismiss()
+                Toast.makeText(this@MainActivity, "Error: ${t.message}", Toast.LENGTH_LONG).show()
+                appendLog("SAVE ERROR: ${t::class.java.simpleName}: ${t.message}")
+            }
+        }
+    }
+
     private fun loadMasterAndMapping() {
         uiScope.launch {
             try {
-                // 1) get master products
                 val masterResp = withContext(Dispatchers.IO) { api.getMasterProducts() }
                 if (masterResp.isSuccessful) {
                     val master = masterResp.body()?.data.orEmpty()
@@ -425,7 +512,6 @@ class MainActivity : AppCompatActivity() {
                         )
                     }
 
-                    // build index map
                     itemCodeToIndex.clear()
                     rows.forEachIndexed { idx, r -> itemCodeToIndex[r.itemCode] = idx }
 
@@ -434,7 +520,6 @@ class MainActivity : AppCompatActivity() {
                     appendLog("GET MASTER FAIL: HTTP ${masterResp.code()}")
                 }
 
-                // 2) get RFID mapping EPC->item_code
                 val mapResp = withContext(Dispatchers.IO) { api.getRfidMapping() }
                 if (mapResp.isSuccessful) {
                     epcToItemCode.clear()
@@ -451,9 +536,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ==========================
-    // LIFECYCLE
-    // ==========================
     override fun onPause() {
         super.onPause()
         stopLoop()
@@ -466,7 +548,8 @@ class MainActivity : AppCompatActivity() {
             stopLoop()
             reader?.free()
             reader = null
-        } catch (_: Throwable) {}
+        } catch (_: Throwable) {
+        }
         super.onDestroy()
     }
 }

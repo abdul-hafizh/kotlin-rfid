@@ -14,6 +14,11 @@ interface ApiService {
 
     @GET("api/rfid/mapping")
     suspend fun getRfidMapping(): Response<RfidMappingResponse>
+
+    @POST("api/rfid/scan-sessions")
+    suspend fun saveScanSession(
+        @Body body: SaveScanSessionRequest
+    ): Response<SaveScanSessionResponse>
 }
 
 data class MasterProductsResponse(

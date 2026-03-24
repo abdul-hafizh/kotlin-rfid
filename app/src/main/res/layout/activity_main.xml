@@ -72,6 +72,16 @@
                 android:textColor="@android:color/white"
                 android:backgroundTint="@color/blue_500" />
 
+            <!-- ===== Simpan Hasil Scan Button ===== -->
+            <Button
+                android:id="@+id/btnSaveScan"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Simpan Hasil Scan"
+                android:textColor="@android:color/white"
+                android:backgroundTint="@color/design_default_color_primary" />
+
             <!-- ===== Push Button ===== -->
             <Button
                 android:id="@+id/btnPush"

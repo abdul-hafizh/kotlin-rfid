@@ -13,5 +13,5 @@
     <string name="single">Single</string>
     <string name="init">Init</string>
     <string name="start_loop">Start Loop</string>
-    <string name="push_server">Push Server</string>
+    <string name="push_server">Simpan Tag Baru</string>
 </resources>
