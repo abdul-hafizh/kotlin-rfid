@@ -3,215 +3,31 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@android:color/white">
+    android:layout_height="match_parent">
 
-    <!-- ================= Toolbar ================= -->
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
         <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="@android:color/white"
-            android:title="@string/rfid_scanner"
-            android:titleTextColor="@android:color/black"
-            app:titleCentered="false" />
-    </com.google.android.material.appbar.AppBarLayout>
+            android:title="@string/rfid_scanner2" />
 
-    <!-- ================= Content ================= -->
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/rootScroll"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fillViewport="true"
-        android:padding="16dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
-
-        <LinearLayout
-            android:id="@+id/root"
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tabLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            app:tabIndicatorColor="@color/blue_500"
+            app:tabSelectedTextColor="@color/blue_500"
+            app:tabTextColor="@android:color/darker_gray"/>
+    </com.google.android.material.appbar.AppBarLayout>
 
-            <!-- ===== Row Button Loop & Single ===== -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/btnLoop"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/start_loop"
-                    android:textColor="@android:color/white"
-                    android:layout_marginEnd="8dp"
-                    android:backgroundTint="@color/blue_500" />
-
-                <Button
-                    android:id="@+id/btnSingle"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/single"
-                    android:textColor="@android:color/white"
-                    android:backgroundTint="@color/blue_500" />
-            </LinearLayout>
-
-            <!-- ===== Clear Button ===== -->
-            <Button
-                android:id="@+id/btnClear"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="@string/clear"
-                android:textColor="@android:color/white"
-                android:backgroundTint="@color/blue_500" />
-
-            <!-- ===== Simpan Hasil Scan Button ===== -->
-            <Button
-                android:id="@+id/btnSaveScan"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Simpan Hasil Scan"
-                android:textColor="@android:color/white"
-                android:backgroundTint="@color/design_default_color_primary" />
-
-            <!-- ===== Push Button ===== -->
-            <Button
-                android:id="@+id/btnPush"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/push_server"
-                android:textColor="@android:color/white"
-                android:backgroundTint="@color/design_default_color_secondary" />
-
-            <!-- ===== Status Text ===== -->
-            <TextView
-                android:id="@+id/tvInfo"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="@string/status"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:textColor="@android:color/black" />
-
-            <!-- ===== TABLE ===== -->
-            <HorizontalScrollView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:fillViewport="true"
-                android:scrollbars="horizontal"
-                android:background="#F7F7F7">
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="8dp">
-
-                    <!-- ===== HEADER ROW ===== -->
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:background="#DDDDDD"
-                        android:padding="8dp">
-
-                        <TextView
-                            android:layout_width="50dp"
-                            android:layout_height="wrap_content"
-                            android:text="No"
-                            android:textStyle="bold"
-                            android:textSize="12sp" />
-
-                        <TextView
-                            android:layout_width="100dp"
-                            android:layout_height="wrap_content"
-                            android:text="Item Code"
-                            android:textStyle="bold"
-                            android:textSize="12sp" />
-
-                        <TextView
-                            android:layout_width="200dp"
-                            android:layout_height="wrap_content"
-                            android:text="Item Name"
-                            android:textStyle="bold"
-                            android:textSize="12sp" />
-
-                        <TextView
-                            android:layout_width="60dp"
-                            android:layout_height="wrap_content"
-                            android:gravity="end"
-                            android:text="End Stock"
-                            android:textStyle="bold"
-                            android:textSize="12sp" />
-
-                        <TextView
-                            android:layout_width="60dp"
-                            android:layout_height="wrap_content"
-                            android:gravity="end"
-                            android:text="Scan"
-                            android:textStyle="bold"
-                            android:textSize="12sp" />
-
-                        <TextView
-                            android:layout_width="60dp"
-                            android:layout_height="wrap_content"
-                            android:gravity="end"
-                            android:text="Selisih"
-                            android:textStyle="bold"
-                            android:textSize="12sp" />
-
-                        <TextView
-                            android:layout_width="100dp"
-                            android:layout_height="wrap_content"
-                            android:gravity="end"
-                            android:text="Status"
-                            android:textStyle="bold"
-                            android:textSize="12sp" />
-                    </LinearLayout>
-
-                    <!-- ===== DATA LIST ===== -->
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/rvProducts"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:nestedScrollingEnabled="false" />
-                </LinearLayout>
-            </HorizontalScrollView>
-
-            <!-- ===== LOG TITLE ===== -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="Log"
-                android:textStyle="bold"
-                android:textColor="@android:color/black" />
-
-            <!-- ===== Log Area (lebih tinggi) ===== -->
-            <TextView
-                android:id="@+id/tvLog"
-                android:layout_width="match_parent"
-                android:layout_height="300dp"
-                android:layout_marginTop="8dp"
-                android:textSize="12sp"
-                android:textColor="@android:color/black"
-                android:textIsSelectable="true"
-                android:background="#EEEEEE"
-                android:padding="10dp"
-                android:scrollbars="vertical" />
-
-        </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/viewPager"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="-14dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"/>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

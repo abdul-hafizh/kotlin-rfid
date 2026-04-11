@@ -2,12 +2,14 @@ package com.example.newrfid
 
 import retrofit2.Response
 import retrofit2.http.Body
-import retrofit2.http.POST
 import retrofit2.http.GET
+import retrofit2.http.POST
 
 interface ApiService {
     @POST("api/rfid/tags")
-    suspend fun pushTags(@Body body: PushTagsRequest): Response<PushTagsResponse>
+    suspend fun pushTags(
+        @Body body: PushTagsRequest
+    ): Response<PushTagsResponse>
 
     @GET("api/master/products")
     suspend fun getMasterProducts(): Response<MasterProductsResponse>
@@ -19,6 +21,14 @@ interface ApiService {
     suspend fun saveScanSession(
         @Body body: SaveScanSessionRequest
     ): Response<SaveScanSessionResponse>
+
+    @GET("api/rfid/unregistered-tags")
+    suspend fun getUnregisteredTags(): Response<UnregisteredTagsResponse>
+
+    @POST("api/rfid/register")
+    suspend fun registerTags(
+        @Body body: RegisterTagRequest
+    ): Response<RegisterTagResponse>
 }
 
 data class MasterProductsResponse(

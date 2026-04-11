@@ -182,6 +182,15 @@
                 </LinearLayout>
             </HorizontalScrollView>
 
+            <Button
+                android:id="@+id/btnSync"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/sync_data"
+                android:textColor="@android:color/white"
+                android:backgroundTint="@color/blue_500" />
+
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

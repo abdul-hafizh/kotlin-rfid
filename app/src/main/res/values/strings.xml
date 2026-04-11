@@ -14,4 +14,7 @@
     <string name="init">Init</string>
     <string name="start_loop">Start Loop</string>
     <string name="push_server">Simpan Tag Baru</string>
+    <string name="rfid_scanner2">RFID Scanner</string>
+    <string name="log">Log</string>
+    <string name="sync_data">Sync Data</string>
 </resources>
