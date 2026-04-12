@@ -25,6 +25,7 @@ class RegistrasiFragment : Fragment() {
     private lateinit var tvSelectedCount: TextView
     private lateinit var etNotesRegis: EditText
 
+    private lateinit var btnSyncRegis: Button
     private lateinit var productAdapter: ProductSelectAdapter
     private lateinit var tagAdapter: UnregisteredTagAdapter
 
@@ -46,6 +47,7 @@ class RegistrasiFragment : Fragment() {
         btnRegisterSelected = view.findViewById(R.id.btnRegisterSelected)
         tvSelectedCount = view.findViewById(R.id.tvSelectedCount)
         etNotesRegis = view.findViewById(R.id.etNotesRegis)
+        btnSyncRegis = view.findViewById(R.id.btnSyncRegis)
 
         setupProductRecycler()
         setupTagRecycler()
@@ -82,6 +84,10 @@ class RegistrasiFragment : Fragment() {
 
         btnUncheckAll.setOnClickListener {
             tagAdapter.setAllSelected(false)
+        }
+
+        btnSyncRegis.setOnClickListener {
+            syncRegistrasiData()
         }
 
         btnRegisterSelected.setOnClickListener {
@@ -131,6 +137,44 @@ class RegistrasiFragment : Fragment() {
                 }
             } catch (e: Exception) {
                 Toast.makeText(requireContext(), "Error product: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun syncRegistrasiData() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                btnSyncRegis.isEnabled = false
+                btnRegisterSelected.isEnabled = false
+
+                val productResponse = api.getMasterProducts()
+                if (productResponse.isSuccessful && productResponse.body()?.success == true) {
+                    val products = productResponse.body()?.data ?: emptyList()
+                    productAdapter.setData(products)
+                }
+
+                val tagResponse = api.getUnregisteredTags()
+                if (tagResponse.isSuccessful && tagResponse.body()?.success == true) {
+                    val tags = tagResponse.body()?.data ?: emptyList()
+                    tagAdapter.setData(tags)
+                }
+
+                updateSelectedCount()
+
+                Toast.makeText(
+                    requireContext(),
+                    "Data registrasi berhasil disinkronkan",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } catch (e: Exception) {
+                Toast.makeText(
+                    requireContext(),
+                    "Gagal sync: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            } finally {
+                btnSyncRegis.isEnabled = true
+                btnRegisterSelected.isEnabled = true
             }
         }
     }

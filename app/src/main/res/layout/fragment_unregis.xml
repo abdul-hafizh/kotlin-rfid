@@ -1,13 +1,99 @@
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:gravity="center">
+    android:fillViewport="true"
+    android:background="@android:color/white">
 
-    <TextView
-        android:text="Unregis Tag"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        android:layout_height="100px"
-        android:layout_width="300px"/>
-</LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/tvTitleUnreg"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Unregis Tag"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnLoopUnreg"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Start Loop" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnCheckAllUnreg"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Pilih Semua" />
+
+            <Space
+                android:layout_width="8dp"
+                android:layout_height="wrap_content" />
+
+            <Button
+                android:id="@+id/btnUncheckAllUnreg"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Batal Pilih" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnClearUnreg"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Clear" />
+
+        <TextView
+            android:id="@+id/tvUnregCount"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Dipilih: 0 tag"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvListLabelUnreg"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Daftar Tag yang Akan Di-unregister"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="vertical"
+            android:background="@drawable/bg_box_border"
+            android:padding="8dp">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvUnregItems"
+                android:layout_width="match_parent"
+                android:layout_height="320dp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnSubmitUnreg"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Unregister Tag Terpilih" />
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

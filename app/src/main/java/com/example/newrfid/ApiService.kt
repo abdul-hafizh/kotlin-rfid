@@ -29,6 +29,16 @@ interface ApiService {
     suspend fun registerTags(
         @Body body: RegisterTagRequest
     ): Response<RegisterTagResponse>
+
+    @POST("api/rfid/active-by-epc")
+    suspend fun getActiveByEpc(
+        @Body body: ActiveByEpcRequest
+    ): Response<ActiveByEpcResponse>
+
+    @POST("api/rfid/bulk-unregister")
+    suspend fun bulkUnregister(
+        @Body body: BulkUnregisterRequest
+    ): Response<BulkUnregisterResponse>
 }
 
 data class MasterProductsResponse(

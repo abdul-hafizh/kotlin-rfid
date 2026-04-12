@@ -6,20 +6,6 @@
     android:layout_height="match_parent"
     android:background="@android:color/white">
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@android:color/white"
-            android:title="@string/rfid_scanner"
-            android:titleTextColor="@android:color/black"
-            app:titleCentered="false" />
-    </com.google.android.material.appbar.AppBarLayout>
-
     <androidx.core.widget.NestedScrollView
         android:id="@+id/rootScroll"
         android:layout_width="match_parent"
@@ -33,6 +19,14 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Scan Tag"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:paddingBottom="5dp" />
 
             <!-- ===== Row Button Loop & Single ===== -->
             <LinearLayout

@@ -74,6 +74,7 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
         tvInfo = view.findViewById(R.id.tvInfo)
         tvLog = view.findViewById(R.id.tvLog)
         tvLog.movementMethod = android.text.method.ScrollingMovementMethod()
+        tvLog.movementMethod = android.text.method.ScrollingMovementMethod()
         btnLoop = view.findViewById(R.id.btnLoop)
         btnSaveScan = view.findViewById(R.id.btnSaveScan)
         btnSync = view.findViewById(R.id.btnSync)
@@ -159,9 +160,17 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
 
                 view?.post {
                     dialog.dismiss()
-                    showInfo("init: $ok")
-                    appendLog("init result: $ok")
-                    if (ok) reader?.setEPCMode()
+                    if (!ok) {
+                        Toast.makeText(requireContext(), "Init reader gagal", Toast.LENGTH_SHORT).show()
+                    } else {
+                        reader?.setEPCMode()
+
+                        try {
+                            reader?.setPower(25)   // (±2–5 meter)
+                        } catch (e: Exception) {
+                            Log.e("SCAN", "setPower error", e)
+                        }
+                    }
                 }
             } catch (t: Throwable) {
                 view?.post {

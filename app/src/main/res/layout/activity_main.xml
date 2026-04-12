@@ -10,24 +10,28 @@
         android:layout_height="wrap_content">
 
         <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:title="@string/rfid_scanner2" />
+            android:background="@color/blue_500"
+            android:theme="@style/ThemeOverlay.MaterialComponents.ActionBar"
+            android:title="@string/rfid_scanner"
+            app:titleTextColor="@android:color/white" />
 
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tabLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="@android:color/white"
             app:tabIndicatorColor="@color/blue_500"
             app:tabSelectedTextColor="@color/blue_500"
-            app:tabTextColor="@android:color/darker_gray"/>
+            app:tabTextColor="@android:color/darker_gray" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPager"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginTop="-14dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior"/>
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
