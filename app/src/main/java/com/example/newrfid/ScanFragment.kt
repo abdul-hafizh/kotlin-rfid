@@ -13,7 +13,6 @@ import android.provider.Settings
 import android.util.Log
 import android.view.View
 import android.widget.Button
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,6 +44,8 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
     private val seenEpc = HashSet<String>()
     private var totalReads = 0
 
+    private var selectedMasterSource: MasterSource = MasterSource.DEFAULT
+
     private lateinit var btnSync: Button
 
     private lateinit var rvProducts: RecyclerView
@@ -55,6 +56,8 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
     private val epcToItemCode = HashMap<String, String>()
     private var unknownRegistered = 0
     private var isMappingLoaded = false
+
+    private lateinit var btnChooseMasterSource: Button
 
     private val requestPerms = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -70,6 +73,8 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        selectedMasterSource = MasterSourceStore.load(requireContext())
 
         tvInfo = view.findViewById(R.id.tvInfo)
         tvLog = view.findViewById(R.id.tvLog)
@@ -95,6 +100,13 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
             syncMasterAndMapping()
         }
 
+        btnChooseMasterSource = view.findViewById(R.id.btnChooseMasterSource)
+        updateMasterSourceButtonText()
+
+        btnChooseMasterSource.setOnClickListener {
+            chooseMasterSource()
+        }
+
         rvProducts = view.findViewById(R.id.rvProducts)
         productAdapter = ProductAdapter(productRows)
         rvProducts.layoutManager = LinearLayoutManager(requireContext())
@@ -104,6 +116,99 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
         checkPermissionThenInit()
 
         loadMasterAndMapping()
+    }
+
+    private suspend fun fetchMasterProductsBySource() =
+        when (selectedMasterSource) {
+            MasterSource.DEFAULT -> api.getMasterProductsDefault()
+            MasterSource.IMPORT -> api.getMasterProductsImport()
+        }
+
+    private fun updateMasterSourceButtonText() {
+        val label = when (selectedMasterSource) {
+            MasterSource.DEFAULT -> "Sumber Master: Produk Pusat"
+            MasterSource.IMPORT -> "Sumber Master: Hasil Import"
+        }
+        btnChooseMasterSource.text = label
+    }
+
+    private fun chooseMasterSource() {
+        if (loopFlag) {
+            Toast.makeText(requireContext(), "Stop loop dulu sebelum ganti sumber master", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val items = arrayOf("Master Produk Biasa", "Master Produk Import")
+        val checkedItem = if (selectedMasterSource == MasterSource.DEFAULT) 0 else 1
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Pilih Sumber Master Produk")
+            .setSingleChoiceItems(items, checkedItem) { dialog, which ->
+                val newSource = if (which == 0) MasterSource.DEFAULT else MasterSource.IMPORT
+
+                if (newSource != selectedMasterSource) {
+                    selectedMasterSource = newSource
+                    MasterSourceStore.save(requireContext(), newSource)
+                    updateMasterSourceButtonText()
+                    reloadMasterForScan()
+                }
+
+                dialog.dismiss()
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun reloadMasterForScan() {
+        clearScanStateOnly()
+
+        val progress = ProgressDialog(requireContext()).apply {
+            setMessage("Memuat master produk...")
+            setCancelable(false)
+            show()
+        }
+
+        uiScope.launch {
+            try {
+                val masterResp = withContext(Dispatchers.IO) { fetchMasterProductsBySource() }
+
+                if (masterResp.isSuccessful) {
+                    val master = masterResp.body()?.data.orEmpty()
+                    val rows = master.map {
+                        ProductRow(
+                            itemCode = it.itemcode,
+                            itemName = it.itemname,
+                            endStock = it.endstock ?: 0,
+                            scanQty = 0
+                        )
+                    }
+
+                    itemCodeToIndex.clear()
+                    rows.forEachIndexed { idx, r -> itemCodeToIndex[r.itemCode] = idx }
+
+                    productAdapter.setData(rows.toList())
+                    appendLog("Master produk dimuat dari sumber: ${selectedMasterSource.apiValue}")
+                } else {
+                    appendLog("GET MASTER FAIL: HTTP ${masterResp.code()}")
+                }
+            } catch (t: Throwable) {
+                appendLog("Reload master ERROR: ${t.message}")
+            } finally {
+                progress.dismiss()
+            }
+        }
+    }
+
+    private fun clearScanStateOnly() {
+        seenEpc.clear()
+        totalReads = 0
+        seenTagMap.clear()
+        unknownRegistered = 0
+
+        val current = productAdapter.getItems().map { it.copy(scanQty = 0) }
+        productAdapter.setData(current)
+
+        updateInfo(if (loopFlag) "Loop: ON" else "Loop: OFF")
     }
 
     private fun checkPermissionThenInit() {
@@ -538,7 +643,7 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
 
         uiScope.launch {
             try {
-                val masterResp = withContext(Dispatchers.IO) { api.getMasterProducts() }
+                val masterResp = withContext(Dispatchers.IO) { fetchMasterProductsBySource() }
                 if (masterResp.isSuccessful) {
                     val master = masterResp.body()?.data.orEmpty()
                     val rows = master.map {
@@ -583,7 +688,7 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
     private fun loadMasterAndMapping() {
         uiScope.launch {
             try {
-                val masterResp = withContext(Dispatchers.IO) { api.getMasterProducts() }
+                val masterResp = withContext(Dispatchers.IO) { fetchMasterProductsBySource() }
                 if (masterResp.isSuccessful) {
                     val master = masterResp.body()?.data.orEmpty()
                     val rows = master.map {

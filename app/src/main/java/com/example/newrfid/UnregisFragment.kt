@@ -2,20 +2,17 @@ package com.example.newrfid
 
 import android.app.AlertDialog
 import android.app.ProgressDialog
-import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import android.view.View
 import android.widget.Button
-import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.rscja.deviceapi.RFIDWithUHFUART
-import com.rscja.deviceapi.entity.UHFTAGInfo
 import com.rscja.deviceapi.interfaces.IUHFInventoryCallback
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -81,6 +78,12 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
         btnClearUnreg.setOnClickListener { clearAll() }
         btnSubmitUnreg.setOnClickListener { confirmBulkUnregister() }
     }
+
+    private suspend fun fetchMasterProductsBySource() =
+        when (MasterSourceStore.load(requireContext())) {
+            MasterSource.DEFAULT -> api.getMasterProductsDefault()
+            MasterSource.IMPORT -> api.getMasterProductsImport()
+        }
 
     private fun initReaderAsync() {
         val progress = ProgressDialog(requireContext()).apply {
@@ -192,10 +195,10 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
         uiScope.launch {
             try {
                 val resp = withContext(Dispatchers.IO) {
-                    api.getMasterProducts()
+                    fetchMasterProductsBySource()
                 }
 
-                if (resp.isSuccessful) {
+                if (resp.isSuccessful && resp.body()?.success == true) {
                     itemCodeToName.clear()
 
                     resp.body()?.data?.forEach {

@@ -11,9 +11,6 @@ interface ApiService {
         @Body body: PushTagsRequest
     ): Response<PushTagsResponse>
 
-    @GET("api/master/products")
-    suspend fun getMasterProducts(): Response<MasterProductsResponse>
-
     @GET("api/rfid/mapping")
     suspend fun getRfidMapping(): Response<RfidMappingResponse>
 
@@ -39,6 +36,12 @@ interface ApiService {
     suspend fun bulkUnregister(
         @Body body: BulkUnregisterRequest
     ): Response<BulkUnregisterResponse>
+
+    @GET("api/master/products")
+    suspend fun getMasterProductsDefault(): Response<MasterProductsResponse>
+
+    @GET("api/master-products")
+    suspend fun getMasterProductsImport(): Response<MasterProductsResponse>
 }
 
 data class MasterProductsResponse(

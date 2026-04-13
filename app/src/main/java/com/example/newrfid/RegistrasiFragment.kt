@@ -128,7 +128,7 @@ class RegistrasiFragment : Fragment() {
     private fun loadMasterProducts() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val response = api.getMasterProducts()
+                val response = fetchMasterProductsBySource()
                 if (response.isSuccessful && response.body()?.success == true) {
                     val products = response.body()?.data ?: emptyList()
                     productAdapter.setData(products)
@@ -141,13 +141,19 @@ class RegistrasiFragment : Fragment() {
         }
     }
 
+    private suspend fun fetchMasterProductsBySource() =
+        when (MasterSourceStore.load(requireContext())) {
+            MasterSource.DEFAULT -> api.getMasterProductsDefault()
+            MasterSource.IMPORT -> api.getMasterProductsImport()
+        }
+
     private fun syncRegistrasiData() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 btnSyncRegis.isEnabled = false
                 btnRegisterSelected.isEnabled = false
 
-                val productResponse = api.getMasterProducts()
+                val productResponse = fetchMasterProductsBySource()
                 if (productResponse.isSuccessful && productResponse.body()?.success == true) {
                     val products = productResponse.body()?.data ?: emptyList()
                     productAdapter.setData(products)
@@ -193,6 +199,12 @@ class RegistrasiFragment : Fragment() {
                 Toast.makeText(requireContext(), "Error tag: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        loadMasterProducts()
+        loadUnregisteredTags()
     }
 
     private fun submitRegistration(request: RegisterTagRequest) {

@@ -81,6 +81,12 @@
                 android:textColor="@android:color/white"
                 android:backgroundTint="@color/design_default_color_secondary" />
 
+            <Button
+                android:id="@+id/btnChooseMasterSource"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Sumber Master: Default" />
+
             <!-- ===== Status Text ===== -->
             <TextView
                 android:id="@+id/tvInfo"
