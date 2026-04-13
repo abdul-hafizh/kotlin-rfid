@@ -9,6 +9,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -38,6 +39,8 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
     private val itemCodeToName = HashMap<String, String>()
     private val seenEpc = HashSet<String>()
 
+    private val unregPower = 1
+
     private lateinit var unregAdapter: UnregItemAdapter
 
     private val api: ApiService by lazy { ApiClient.create() }
@@ -56,6 +59,8 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
         btnSubmitUnreg = view.findViewById(R.id.btnSubmitUnreg)
         tvUnregCount = view.findViewById(R.id.tvUnregCount)
         rvUnregItems = view.findViewById(R.id.rvUnregItems)
+
+        updateLoopButton()
 
         setupRecycler()
         initReaderAsync()
@@ -112,12 +117,7 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
                         Toast.makeText(requireContext(), "Init reader gagal", Toast.LENGTH_SHORT).show()
                     } else {
                         reader?.setEPCMode()
-
-                        try {
-                            reader?.setPower(10) // (±10–50 cm)
-                        } catch (e: Exception) {
-                            Log.e("UNREG", "setPower error", e)
-                        }
+                        applyUnregPower()
                     }
                 }
             } catch (t: Throwable) {
@@ -127,6 +127,34 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
                 }
             }
         }
+    }
+
+    private fun updateLoopButton() {
+        if (loopFlag) {
+            btnLoopUnreg.text = "Stop Loop"
+            btnLoopUnreg.setBackgroundTintList(
+                ContextCompat.getColorStateList(requireContext(), R.color.red_500)
+            )
+        } else {
+            btnLoopUnreg.text = "Start Loop"
+            btnLoopUnreg.setBackgroundTintList(
+                ContextCompat.getColorStateList(requireContext(), R.color.blue_500)
+            )
+        }
+    }
+
+    private fun applyUnregPower() {
+        try {
+            reader?.setPower(unregPower)
+            Log.d(tagLog, "Power unreg diset ke $unregPower")
+        } catch (t: Throwable) {
+            Log.e(tagLog, "Gagal set power unreg", t)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyUnregPower()
     }
 
     private fun toggleLoop() {
@@ -140,13 +168,16 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
         } else {
             stopLoop()
         }
+
+        updateLoopButton()
     }
 
     private fun startLoop() {
         try {
             seenEpc.clear()
+            applyUnregPower()
+
             loopFlag = true
-            btnLoopUnreg.text = "Stop Loop"
 
             reader?.setInventoryCallback(IUHFInventoryCallback { info ->
                 view?.post {
@@ -166,12 +197,12 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
             val ok = reader?.startInventoryTag() == true
             if (!ok) {
                 loopFlag = false
-                btnLoopUnreg.text = "Start Loop"
+                updateLoopButton()
                 Toast.makeText(requireContext(), "Start loop gagal", Toast.LENGTH_SHORT).show()
             }
         } catch (t: Throwable) {
             loopFlag = false
-            btnLoopUnreg.text = "Start Loop"
+            updateLoopButton()
             Toast.makeText(requireContext(), "Loop error: ${t.message}", Toast.LENGTH_LONG).show()
         }
     }
@@ -180,7 +211,6 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
         if (!loopFlag) return
 
         loopFlag = false
-        btnLoopUnreg.text = "Start Loop"
 
         try {
             reader?.stopInventory()
@@ -343,6 +373,7 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
     override fun onPause() {
         super.onPause()
         stopLoop()
+        updateLoopButton()
     }
 
     override fun onDestroy() {

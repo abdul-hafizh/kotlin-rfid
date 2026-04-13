@@ -24,7 +24,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="Start Loop" />
+            android:text="Start Loop"
+            android:textColor="@android:color/white"
+            android:backgroundTint="@color/blue_500" />
 
         <LinearLayout
             android:layout_width="match_parent"

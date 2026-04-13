@@ -44,6 +44,8 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
     private val seenEpc = HashSet<String>()
     private var totalReads = 0
 
+    private val scanPower = 30
+
     private var selectedMasterSource: MasterSource = MasterSource.DEFAULT
 
     private lateinit var btnSync: Button
@@ -85,7 +87,10 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
         btnSync = view.findViewById(R.id.btnSync)
 
         view.findViewById<Button>(R.id.btnSingle).setOnClickListener { scanSingle() }
-        btnLoop.setOnClickListener { toggleLoop() }
+        btnLoop.setOnClickListener {
+            toggleLoop()
+            updateLoopButton()
+        }
         view.findViewById<Button>(R.id.btnClear).setOnClickListener { clearLog() }
 
         view.findViewById<Button>(R.id.btnPush).setOnClickListener {
@@ -199,6 +204,20 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
         }
     }
 
+    private fun updateLoopButton() {
+        if (loopFlag) {
+            btnLoop.text = "Stop Loop"
+            btnLoop.setBackgroundTintList(
+                ContextCompat.getColorStateList(requireContext(), R.color.red_500)
+            )
+        } else {
+            btnLoop.text = "Start Loop"
+            btnLoop.setBackgroundTintList(
+                ContextCompat.getColorStateList(requireContext(), R.color.blue_500)
+            )
+        }
+    }
+
     private fun clearScanStateOnly() {
         seenEpc.clear()
         totalReads = 0
@@ -241,6 +260,15 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
         initReaderAsync()
     }
 
+    private fun applyScanPower() {
+        try {
+            reader?.setPower(scanPower)
+            appendLog("Power scan diset ke $scanPower")
+        } catch (t: Throwable) {
+            appendLog("Gagal set power scan: ${t.message}")
+        }
+    }
+
     private fun initReaderAsync() {
         val dialog = ProgressDialog(requireContext()).apply {
             setMessage("init...")
@@ -269,12 +297,7 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
                         Toast.makeText(requireContext(), "Init reader gagal", Toast.LENGTH_SHORT).show()
                     } else {
                         reader?.setEPCMode()
-
-                        try {
-                            reader?.setPower(25)   // (±2–5 meter)
-                        } catch (e: Exception) {
-                            Log.e("SCAN", "setPower error", e)
-                        }
+                        applyScanPower()
                     }
                 }
             } catch (t: Throwable) {
@@ -288,6 +311,11 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        applyScanPower()
+    }
+
     private fun scanSingle() {
         if (reader == null) {
             appendLog("Belum init reader.")
@@ -299,6 +327,7 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
         }
 
         try {
+            applyScanPower()
             val info: UHFTAGInfo? = reader?.inventorySingleTag()
             if (info != null) onTag(info) else appendLog("Single: tidak ada tag kebaca.")
         } catch (t: Throwable) {
@@ -313,8 +342,13 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
             return
         }
 
-        if (!loopFlag) startLoop() else stopLoop()
-        btnLoop.text = if (loopFlag) "Stop Loop" else "Start Loop"
+        if (!loopFlag) {
+            startLoop()
+        } else {
+            stopLoop()
+        }
+
+        updateLoopButton()
     }
 
     private fun startLoop() {
@@ -332,6 +366,8 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
         productAdapter.setData(current)
 
         try {
+            applyScanPower()
+
             reader?.setInventoryCallback(IUHFInventoryCallback { info ->
                 view?.post { if (info != null) onTag(info) }
             })
@@ -728,7 +764,7 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
     override fun onPause() {
         super.onPause()
         stopLoop()
-        btnLoop.text = "Loop"
+        updateLoopButton()
     }
 
     override fun onDestroy() {
