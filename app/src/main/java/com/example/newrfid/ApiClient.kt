@@ -10,7 +10,7 @@ object ApiClient {
 
     // private const val BASE_URL = "http://192.168.100.242:8000/"
 
-    private const val BASE_URL = "http://192.168.1.33:8000/"
+    private const val BASE_URL = "http://10.209.198.164:8000/"
 
     fun create(): ApiService {
 

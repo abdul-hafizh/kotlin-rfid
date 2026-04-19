@@ -22,6 +22,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.concurrent.thread
+import android.media.AudioManager
+import android.media.ToneGenerator
+import android.widget.Spinner
+import android.widget.ArrayAdapter
+import android.widget.AdapterView
 
 class UnregisFragment : Fragment(R.layout.fragment_unregis) {
 
@@ -36,10 +41,13 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
     private var lastToastTime = 0L
     private val TOAST_INTERVAL = 1500L
 
+    private var toneGenerator: ToneGenerator? = null
+
     private val itemCodeToName = HashMap<String, String>()
     private val seenEpc = HashSet<String>()
 
-    private val unregPower = 1
+    private var unregPower = 1
+    private lateinit var spinnerUnregPower: Spinner
 
     private lateinit var unregAdapter: UnregItemAdapter
 
@@ -59,6 +67,9 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
         btnSubmitUnreg = view.findViewById(R.id.btnSubmitUnreg)
         tvUnregCount = view.findViewById(R.id.tvUnregCount)
         rvUnregItems = view.findViewById(R.id.rvUnregItems)
+        toneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
+        spinnerUnregPower = view.findViewById(R.id.spinnerUnregPower)
+        setupPowerSpinner()
 
         updateLoopButton()
 
@@ -84,10 +95,18 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
         btnSubmitUnreg.setOnClickListener { confirmBulkUnregister() }
     }
 
+    private fun playUniqueEpcSound() {
+        try {
+            toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+        } catch (t: Throwable) {
+            Log.e(tagLog, "Gagal bunyikan beep", t)
+        }
+    }
+
     private suspend fun fetchMasterProductsBySource() =
         when (MasterSourceStore.load(requireContext())) {
             MasterSource.DEFAULT -> api.getMasterProductsDefault()
-            MasterSource.IMPORT -> api.getMasterProductsImport()
+            MasterSource.IMPORT -> api.getMasterProductsImport(getDeviceId())
         }
 
     private fun initReaderAsync() {
@@ -126,6 +145,38 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
                     Toast.makeText(requireContext(), "Init error: ${t.message}", Toast.LENGTH_LONG).show()
                 }
             }
+        }
+    }
+
+    private fun setupPowerSpinner() {
+        val listPower = listOf("1", "2", "3")
+        val adapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_spinner_item,
+            listPower
+        )
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+
+        spinnerUnregPower.adapter = adapter
+
+        // default = 1
+        spinnerUnregPower.setSelection(0)
+
+        spinnerUnregPower.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+
+                val selected = listPower[position].toInt()
+
+                // update value
+                unregPower = selected
+
+                // langsung apply ke reader
+                applyUnregPower()
+
+                Log.d(tagLog, "Power berubah ke $unregPower")
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
     }
 
@@ -207,6 +258,13 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
         }
     }
 
+    private fun getDeviceId(): String {
+        return Settings.Secure.getString(
+            requireContext().contentResolver,
+            Settings.Secure.ANDROID_ID
+        ) ?: "UNKNOWN_DEVICE"
+    }
+
     private fun stopLoop() {
         if (!loopFlag) return
 
@@ -256,7 +314,12 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
         uiScope.launch {
             try {
                 val response = withContext(Dispatchers.IO) {
-                    api.getActiveByEpc(ActiveByEpcRequest(epc = epc))
+                    api.getActiveByEpc(
+                        ActiveByEpcRequest(
+                            epc = epc,
+                            device_id = getDeviceId()
+                        )
+                    )
                 }
 
                 if (!loopFlag) return@launch
@@ -275,7 +338,8 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
                         )
 
                         if (added) {
-                            Log.d(tagLog, "\"Item ditemukan: \${data.item_code}")
+                            playUniqueEpcSound()
+                            Log.d(tagLog, "Item ditemukan: ${data.item_code}")
                         }
                     }
                 } else {
@@ -384,6 +448,10 @@ class UnregisFragment : Fragment(R.layout.fragment_unregis) {
             reader = null
         } catch (_: Throwable) {
         }
+
+        toneGenerator?.release()
+        toneGenerator = null
+
         super.onDestroy()
     }
 }

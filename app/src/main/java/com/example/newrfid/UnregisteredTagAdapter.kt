@@ -65,4 +65,8 @@ class UnregisteredTagAdapter(
     }
 
     fun getSelectedItems(): List<UnregisteredTag> = items.filter { it.isSelected }
+
+    fun getItems(): List<UnregisteredTag> {
+        return items
+    }
 }

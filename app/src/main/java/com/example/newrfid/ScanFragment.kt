@@ -1,10 +1,11 @@
 package com.example.newrfid
 
 import android.Manifest
-import android.app.AlertDialog
 import android.app.ProgressDialog
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -12,7 +13,10 @@ import android.os.Environment
 import android.provider.Settings
 import android.util.Log
 import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,7 +27,12 @@ import androidx.recyclerview.widget.RecyclerView
 import com.rscja.deviceapi.RFIDWithUHFUART
 import com.rscja.deviceapi.entity.UHFTAGInfo
 import com.rscja.deviceapi.interfaces.IUHFInventoryCallback
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.LinkedHashMap
@@ -32,11 +41,16 @@ import kotlin.concurrent.thread
 class ScanFragment : Fragment(R.layout.fragment_scan) {
 
     private val tag = "RFID"
-
     private lateinit var tvInfo: TextView
     private lateinit var tvLog: TextView
     private lateinit var btnLoop: Button
     private lateinit var btnSaveScan: Button
+    private lateinit var btnSync: Button
+    private lateinit var btnChooseMasterSource: Button
+    private lateinit var spinnerScanPower: Spinner
+
+    private lateinit var tvDeviceIdValue: TextView
+    private lateinit var btnCopyDeviceId: Button
 
     private var reader: RFIDWithUHFUART? = null
     private var loopFlag = false
@@ -44,11 +58,10 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
     private val seenEpc = HashSet<String>()
     private var totalReads = 0
 
-    private val scanPower = 30
+    private var scanPower = 10
+    private var toneGenerator: ToneGenerator? = null
 
     private var selectedMasterSource: MasterSource = MasterSource.DEFAULT
-
-    private lateinit var btnSync: Button
 
     private lateinit var rvProducts: RecyclerView
     private lateinit var productAdapter: ProductAdapter
@@ -59,8 +72,6 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
     private var unknownRegistered = 0
     private var isMappingLoaded = false
 
-    private lateinit var btnChooseMasterSource: Button
-
     private val requestPerms = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { _ ->
@@ -68,9 +79,7 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
     }
 
     private val seenTagMap = LinkedHashMap<String, TagItem>()
-
     private val api: ApiService by lazy { ApiClient.create() }
-
     private val uiScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -81,36 +90,45 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
         tvInfo = view.findViewById(R.id.tvInfo)
         tvLog = view.findViewById(R.id.tvLog)
         tvLog.movementMethod = android.text.method.ScrollingMovementMethod()
-        tvLog.movementMethod = android.text.method.ScrollingMovementMethod()
+
         btnLoop = view.findViewById(R.id.btnLoop)
         btnSaveScan = view.findViewById(R.id.btnSaveScan)
         btnSync = view.findViewById(R.id.btnSync)
+        btnChooseMasterSource = view.findViewById(R.id.btnChooseMasterSource)
+        spinnerScanPower = view.findViewById(R.id.spinnerScanPower)
+        tvDeviceIdValue = view.findViewById(R.id.tvDeviceIdValue)
+        btnCopyDeviceId = view.findViewById(R.id.btnCopyDeviceId)
 
-        view.findViewById<Button>(R.id.btnSingle).setOnClickListener { scanSingle() }
+        toneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
+
         btnLoop.setOnClickListener {
             toggleLoop()
             updateLoopButton()
         }
-        view.findViewById<Button>(R.id.btnClear).setOnClickListener { clearLog() }
 
-        view.findViewById<Button>(R.id.btnPush).setOnClickListener {
-            confirmPushToServer()
-        }
+        view.findViewById<Button>(R.id.btnClear).setOnClickListener { clearLog() }
 
         btnSaveScan.setOnClickListener {
             confirmSaveScanResult()
+        }
+
+        tvDeviceIdValue.text = getDeviceId()
+
+        btnCopyDeviceId.setOnClickListener {
+            copyDeviceId()
         }
 
         btnSync.setOnClickListener {
             syncMasterAndMapping()
         }
 
-        btnChooseMasterSource = view.findViewById(R.id.btnChooseMasterSource)
         updateMasterSourceButtonText()
 
         btnChooseMasterSource.setOnClickListener {
             chooseMasterSource()
         }
+
+        setupPowerSpinner()
 
         rvProducts = view.findViewById(R.id.rvProducts)
         productAdapter = ProductAdapter(productRows)
@@ -119,14 +137,49 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
 
         showInfo("Belum init")
         checkPermissionThenInit()
-
         loadMasterAndMapping()
+    }
+
+    private fun setupPowerSpinner() {
+        val listPower = listOf("10", "20", "30", "40", "50")
+
+        val adapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_spinner_item,
+            listPower
+        )
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerScanPower.adapter = adapter
+
+        spinnerScanPower.setSelection(0)
+
+        spinnerScanPower.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                scanPower = listPower[position].toInt()
+                applyScanPower()
+                appendLog("Power scan diubah ke $scanPower")
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+    }
+
+    private fun copyDeviceId() {
+        try {
+            val deviceId = getDeviceId()
+            val clipboard = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            val clip = android.content.ClipData.newPlainText("device_id", deviceId)
+            clipboard.setPrimaryClip(clip)
+            Toast.makeText(requireContext(), "Device ID berhasil disalin", Toast.LENGTH_SHORT).show()
+        } catch (t: Throwable) {
+            Toast.makeText(requireContext(), "Gagal menyalin Device ID", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private suspend fun fetchMasterProductsBySource() =
         when (selectedMasterSource) {
             MasterSource.DEFAULT -> api.getMasterProductsDefault()
-            MasterSource.IMPORT -> api.getMasterProductsImport()
+            MasterSource.IMPORT -> api.getMasterProductsImport(getDeviceId())
         }
 
     private fun updateMasterSourceButtonText() {
@@ -135,6 +188,13 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
             MasterSource.IMPORT -> "Sumber Master: Hasil Import"
         }
         btnChooseMasterSource.text = label
+    }
+
+    private fun getDeviceId(): String {
+        return Settings.Secure.getString(
+            requireContext().contentResolver,
+            Settings.Secure.ANDROID_ID
+        ) ?: "UNKNOWN_DEVICE"
     }
 
     private fun chooseMasterSource() {
@@ -146,7 +206,7 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
         val items = arrayOf("Master Produk Biasa", "Master Produk Import")
         val checkedItem = if (selectedMasterSource == MasterSource.DEFAULT) 0 else 1
 
-        AlertDialog.Builder(requireContext())
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle("Pilih Sumber Master Produk")
             .setSingleChoiceItems(items, checkedItem) { dialog, which ->
                 val newSource = if (which == 0) MasterSource.DEFAULT else MasterSource.IMPORT
@@ -263,9 +323,16 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
     private fun applyScanPower() {
         try {
             reader?.setPower(scanPower)
-            appendLog("Power scan diset ke $scanPower")
         } catch (t: Throwable) {
             appendLog("Gagal set power scan: ${t.message}")
+        }
+    }
+
+    private fun playUniqueEpcSound() {
+        try {
+            toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+        } catch (t: Throwable) {
+            Log.e(tag, "Gagal bunyikan beep", t)
         }
     }
 
@@ -287,8 +354,8 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
                     }
                     return@thread
                 }
-                reader = inst
 
+                reader = inst
                 val ok = reader?.init() == true
 
                 view?.post {
@@ -314,26 +381,6 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
     override fun onResume() {
         super.onResume()
         applyScanPower()
-    }
-
-    private fun scanSingle() {
-        if (reader == null) {
-            appendLog("Belum init reader.")
-            return
-        }
-        if (loopFlag) {
-            appendLog("Stop loop dulu sebelum single scan.")
-            return
-        }
-
-        try {
-            applyScanPower()
-            val info: UHFTAGInfo? = reader?.inventorySingleTag()
-            if (info != null) onTag(info) else appendLog("Single: tidak ada tag kebaca.")
-        } catch (t: Throwable) {
-            appendLog("Single ERROR: ${t.message}")
-            Log.e(tag, "scanSingle error", t)
-        }
     }
 
     private fun toggleLoop() {
@@ -417,6 +464,8 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
             return
         }
 
+        playUniqueEpcSound()
+
         val tid = (info.tid ?: "").trim()
         val rssi = (info.rssi ?: "").trim()
 
@@ -431,25 +480,15 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
             readAt = nowIso
         )
 
-        val merged = buildString {
-            append("EPC: ").append(epc)
-            if (tid.isNotEmpty() && tid != "0000000000000000" && tid != "000000000000000000000000") {
-                append("\nTID: ").append(tid)
-            }
-            if (rssi.isNotEmpty()) append("\nRSSI: ").append(rssi)
-        }
-
         val itemCode = epcToItemCode[epc]
         if (itemCode == null) {
             unknownRegistered += 1
-            appendLog("EPC belum terdaftar: $epc")
             updateInfo(if (loopFlag) "Loop: ON" else "Loop: OFF")
             return
         }
 
         val idx = itemCodeToIndex[itemCode]
         if (idx == null) {
-            appendLog("ItemCode $itemCode tidak ada di master produk.")
             updateInfo(if (loopFlag) "Loop: ON" else "Loop: OFF")
             return
         }
@@ -457,7 +496,6 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
         val newQty = productAdapter.getItems()[idx].scanQty + 1
         productAdapter.updateScanQtyAt(idx, newQty)
 
-        appendLog("\n-------- TAG (NEW) --------\n$merged")
         updateInfo(if (loopFlag) "Loop: ON" else "Loop: OFF")
     }
 
@@ -480,7 +518,7 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
     }
 
     private fun appendLog(s: String) {
-        tvLog.append(s + "\n")
+        tvLog.append("$s\n")
 
         val scrollAmount = tvLog.layout?.getLineTop(tvLog.lineCount) ?: 0
         if (scrollAmount > tvLog.height) {
@@ -494,83 +532,6 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
         showInfo("$status | Unique EPC: ${seenEpc.size}")
     }
 
-    private fun confirmPushToServer() {
-        if (seenTagMap.isEmpty()) {
-            Toast.makeText(requireContext(), "Belum ada tag untuk dikirim.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        if (loopFlag) {
-            Toast.makeText(requireContext(), "Stop loop dulu sebelum push.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val count = seenTagMap.size
-
-        AlertDialog.Builder(requireContext())
-            .setTitle("Simpan Tag Baru")
-            .setMessage("Anda yakin ingin mengirim $count tag ke server?")
-            .setPositiveButton("Ya") { _, _ -> pushToServer() }
-            .setNegativeButton("Batal", null)
-            .show()
-    }
-
-    private fun pushToServer() {
-        val progress = ProgressDialog(requireContext()).apply {
-            setMessage("Mengirim data ke server...")
-            setCancelable(false)
-            show()
-        }
-
-        val deviceId = Settings.Secure.getString(requireContext().contentResolver, Settings.Secure.ANDROID_ID)
-        val payload = PushTagsRequest(
-            deviceId = deviceId,
-            tags = seenTagMap.values.toList()
-        )
-
-        uiScope.launch {
-            try {
-                val resp = withContext(Dispatchers.IO) { api.pushTags(payload) }
-                progress.dismiss()
-
-                if (resp.isSuccessful) {
-                    val body = resp.body()
-
-                    val msg = buildString {
-                        append(body?.message ?: "Berhasil.")
-                        append("\n\nInserted: ").append(body?.inserted ?: 0)
-                        append("\nDuplicate: ").append(body?.duplicate ?: 0)
-
-                        val dupList = body?.duplicateEpc
-                        if (!dupList.isNullOrEmpty()) {
-                            append("\n\nContoh EPC duplikat:\n")
-                            append(dupList.take(10).joinToString("\n"))
-                        }
-                    }
-
-                    AlertDialog.Builder(requireContext())
-                        .setTitle("Respon Server")
-                        .setMessage(msg)
-                        .setPositiveButton("OK", null)
-                        .show()
-
-                    appendLog("PUSH `OK: ${body?.message ?: "success"} | inserted=${body?.inserted} dup=${body?.duplicate}")
-                } else {
-                    val err = try { resp.errorBody()?.string() } catch (_: Throwable) { null }
-                    Toast.makeText(requireContext(), "Gagal push: ${resp.code()}", Toast.LENGTH_LONG).show()
-                    appendLog("PUSH FAIL HTTP ${resp.code()}: $err")
-                }
-            } catch (t: Throwable) {
-                progress.dismiss()
-                Toast.makeText(requireContext(), "Error: ${t.message}", Toast.LENGTH_LONG).show()
-                appendLog("PUSH ERROR: ${t::class.java.simpleName}: ${t.message}")
-            }
-        }
-    }
-
-    // ==========================
-    // SIMPAN HASIL SCAN
-    // ==========================
     private fun confirmSaveScanResult() {
         if (seenTagMap.isEmpty()) {
             Toast.makeText(requireContext(), "Belum ada hasil scan untuk disimpan.", Toast.LENGTH_SHORT).show()
@@ -582,7 +543,7 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
             return
         }
 
-        AlertDialog.Builder(requireContext())
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle("Simpan Hasil Scan")
             .setMessage("Simpan hasil scan saat ini ke database?")
             .setPositiveButton("Ya") { _, _ -> saveScanResult() }
@@ -639,13 +600,9 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
 
                     val msg = buildString {
                         append(body?.message ?: "Hasil scan berhasil disimpan")
-                        append("\nSession ID: ").append(body?.data?.sessionId ?: "-")
-                        append("\nSession Code: ").append(body?.data?.sessionCode ?: "-")
-                        append("\nSaved Items: ").append(body?.data?.savedItems ?: 0)
-                        append("\nSaved Tags: ").append(body?.data?.savedTags ?: 0)
                     }
 
-                    AlertDialog.Builder(requireContext())
+                    androidx.appcompat.app.AlertDialog.Builder(requireContext())
                         .setTitle("Simpan Berhasil")
                         .setMessage(msg)
                         .setPositiveButton("OK", null)
@@ -699,7 +656,7 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
                     appendLog("SYNC MASTER FAIL: HTTP ${masterResp.code()}")
                 }
 
-                val mapResp = withContext(Dispatchers.IO) { api.getRfidMapping() }
+                val mapResp = withContext(Dispatchers.IO) { api.getRfidMapping(getDeviceId()) }
                 if (mapResp.isSuccessful) {
                     epcToItemCode.clear()
                     mapResp.body()?.data.orEmpty().forEach { m ->
@@ -744,7 +701,7 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
                     appendLog("GET MASTER FAIL: HTTP ${masterResp.code()}")
                 }
 
-                val mapResp = withContext(Dispatchers.IO) { api.getRfidMapping() }
+                val mapResp = withContext(Dispatchers.IO) { api.getRfidMapping(getDeviceId()) }
                 if (mapResp.isSuccessful) {
                     epcToItemCode.clear()
                     mapResp.body()?.data.orEmpty().forEach { m ->
@@ -775,6 +732,10 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
             reader = null
         } catch (_: Throwable) {
         }
+
+        toneGenerator?.release()
+        toneGenerator = null
+
         super.onDestroy()
     }
 }

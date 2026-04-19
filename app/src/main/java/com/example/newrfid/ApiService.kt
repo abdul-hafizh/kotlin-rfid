@@ -4,6 +4,7 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Query
 
 interface ApiService {
     @POST("api/rfid/tags")
@@ -12,7 +13,9 @@ interface ApiService {
     ): Response<PushTagsResponse>
 
     @GET("api/rfid/mapping")
-    suspend fun getRfidMapping(): Response<RfidMappingResponse>
+    suspend fun getRfidMapping(
+        @retrofit2.http.Query("device_id") deviceId: String
+    ): Response<RfidMappingResponse>
 
     @POST("api/rfid/scan-sessions")
     suspend fun saveScanSession(
@@ -41,7 +44,9 @@ interface ApiService {
     suspend fun getMasterProductsDefault(): Response<MasterProductsResponse>
 
     @GET("api/master-products")
-    suspend fun getMasterProductsImport(): Response<MasterProductsResponse>
+    suspend fun getMasterProductsImport(
+        @Query("device_id") deviceId: String
+    ): Response<MasterProductsResponse>
 }
 
 data class MasterProductsResponse(

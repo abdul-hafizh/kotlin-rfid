@@ -1,7 +1,8 @@
 package com.example.newrfid
 
 data class ActiveByEpcRequest(
-    val epc: String
+    val epc: String,
+    val device_id: String
 )
 
 data class ActiveByEpcResponse(
