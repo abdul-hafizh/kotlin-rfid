@@ -51,6 +51,7 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
 
     private lateinit var tvDeviceIdValue: TextView
     private lateinit var btnCopyDeviceId: Button
+    private lateinit var btnPushDeviceId: Button
 
     private var reader: RFIDWithUHFUART? = null
     private var loopFlag = false
@@ -98,6 +99,7 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
         spinnerScanPower = view.findViewById(R.id.spinnerScanPower)
         tvDeviceIdValue = view.findViewById(R.id.tvDeviceIdValue)
         btnCopyDeviceId = view.findViewById(R.id.btnCopyDeviceId)
+        btnPushDeviceId = view.findViewById(R.id.btnPushDeviceId)
 
         toneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
 
@@ -116,6 +118,10 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
 
         btnCopyDeviceId.setOnClickListener {
             copyDeviceId()
+        }
+
+        btnPushDeviceId.setOnClickListener {
+            confirmPushDeviceId()
         }
 
         btnSync.setOnClickListener {
@@ -222,6 +228,65 @@ class ScanFragment : Fragment(R.layout.fragment_scan) {
             }
             .setNegativeButton("Batal", null)
             .show()
+    }
+
+    private fun confirmPushDeviceId() {
+        if (loopFlag) {
+            Toast.makeText(requireContext(), "Stop loop dulu sebelum push device id.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val deviceId = getDeviceId()
+        if (deviceId.isBlank() || deviceId == "UNKNOWN_DEVICE") {
+            Toast.makeText(requireContext(), "Device ID tidak valid", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Push Device ID")
+            .setMessage("Kirim device id ini ke server?\n\n$deviceId")
+            .setPositiveButton("Ya") { _, _ ->
+                pushDeviceIdToServer()
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun pushDeviceIdToServer() {
+        val progress = ProgressDialog(requireContext()).apply {
+            setMessage("Mengirim device id ke server...")
+            setCancelable(false)
+            show()
+        }
+
+        val deviceId = getDeviceId()
+        val payload = DeviceIdRequest(device_id = deviceId)
+
+        uiScope.launch {
+            try {
+                val resp = withContext(Dispatchers.IO) {
+                    api.postDeviceId(payload)
+                }
+
+                progress.dismiss()
+
+                if (resp.isSuccessful) {
+                    val body = resp.body()
+                    val msg = body?.message ?: "Device ID berhasil dikirim ke server"
+
+                    Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show()
+                    appendLog("PUSH DEVICE ID OK: $deviceId | $msg")
+                } else {
+                    val err = try { resp.errorBody()?.string() } catch (_: Throwable) { null }
+                    Toast.makeText(requireContext(), "Gagal push device id: HTTP ${resp.code()}", Toast.LENGTH_LONG).show()
+                    appendLog("PUSH DEVICE ID FAIL HTTP ${resp.code()}: $err")
+                }
+            } catch (t: Throwable) {
+                progress.dismiss()
+                Toast.makeText(requireContext(), "Error: ${t.message}", Toast.LENGTH_LONG).show()
+                appendLog("PUSH DEVICE ID ERROR: ${t::class.java.simpleName}: ${t.message}")
+            }
+        }
     }
 
     private fun reloadMasterForScan() {

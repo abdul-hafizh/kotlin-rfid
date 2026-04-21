@@ -235,6 +235,16 @@
                     android:text="Copy Device ID"
                     android:textColor="@android:color/white"
                     android:backgroundTint="@color/blue_500" />
+
+                <Button
+                    android:id="@+id/btnPushDeviceId"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Push Device ID ke Server"
+                    android:textColor="@android:color/white"
+                    android:backgroundTint="@color/design_default_color_primary" />
+
             </LinearLayout>
 
             <TextView

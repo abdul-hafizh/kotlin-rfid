@@ -47,6 +47,11 @@ interface ApiService {
     suspend fun getMasterProductsImport(
         @Query("device_id") deviceId: String
     ): Response<MasterProductsResponse>
+
+    @POST("api/device-ids")
+    suspend fun postDeviceId(
+        @Body body: DeviceIdRequest
+    ): Response<DeviceIdPostResponse>
 }
 
 data class MasterProductsResponse(
@@ -68,4 +73,26 @@ data class RfidMappingResponse(
 data class RfidMapItem(
     val epc: String,
     val item_code: String
+)
+
+data class DeviceIdRequest(
+    val device_id: String
+)
+
+data class DeviceIdItem(
+    val id: Long,
+    val device_id: String,
+    val created_at: String?,
+    val updated_at: String?
+)
+
+data class DeviceIdPostResponse(
+    val success: Boolean,
+    val message: String,
+    val data: DeviceIdItem? = null
+)
+
+data class DeviceIdListResponse(
+    val success: Boolean,
+    val data: List<DeviceIdItem> = emptyList()
 )
